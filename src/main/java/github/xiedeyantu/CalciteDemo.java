@@ -8,6 +8,8 @@ import org.apache.calcite.adapter.enumerable.EnumerableRel;
 import org.apache.calcite.adapter.enumerable.EnumerableRules;
 import org.apache.calcite.adapter.java.ReflectiveSchema;
 import org.apache.calcite.adapter.enumerable.EnumerableConvention;
+import org.apache.calcite.avatica.util.Casing;
+import org.apache.calcite.config.Lex;
 import org.apache.calcite.jdbc.CalciteConnection;
 import org.apache.calcite.jdbc.CalcitePrepare;
 import org.apache.calcite.linq4j.Enumerator;
@@ -20,6 +22,8 @@ import org.apache.calcite.rel.type.RelDataType;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.runtime.Bindable;
 import org.apache.calcite.schema.SchemaPlus;
+import org.apache.calcite.sql.SqlDialect;
+import org.apache.calcite.sql.SqlDialect.DatabaseProduct;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParser;
 import org.apache.calcite.tools.FrameworkConfig;
@@ -55,7 +59,10 @@ public class CalciteDemo {
         // 构建Calcite的配置
         final FrameworkConfig config = Frameworks.newConfigBuilder()
                 .defaultSchema(rootSchema.getSubSchema("testSchema")) // 设置默认Schema
-                .parserConfig(SqlParser.config().withCaseSensitive(false)) // SQL解析不区分大小写
+                .parserConfig(SqlParser.config()
+                    .withCaseSensitive(false)
+                    .withUnquotedCasing(Casing.UNCHANGED)
+                    .withQuotedCasing(Casing.UNCHANGED))
                 // 配置两个优化程序：hep和volcano
                 .programs(
                         Programs.hep(ruleSet0, true, DefaultRelMetadataProvider.INSTANCE),
@@ -64,7 +71,7 @@ public class CalciteDemo {
         Planner planner = Frameworks.getPlanner(config);
 
         // SQL查询语句
-        String sql = "SELECT e.empid, e.name, e.salary, d.name as dept_name " +
+        String sql = "SELECT e.empid, e.NAME, e.salary, d.name as DEPT_name, Array['a', 'b'] " +
                 "FROM emps e " +
                 "JOIN depts d ON e.deptno = d.deptno " +
                 "WHERE d.deptno = 10 " +
@@ -72,6 +79,13 @@ public class CalciteDemo {
         System.out.println("=== SQL ===\n" + sql);
         // 解析SQL
         SqlNode parse = planner.parse(sql);
+
+        // SqlDialect clickhouseDialect = SqlDialect.DatabaseProduct.CLICKHOUSE.getDialect();
+        //
+        // // 将 SqlNode 转换为 ClickHouse SQL
+        // String clickhouseSql = parse.toSqlString(clickhouseDialect).getSql();
+        // System.out.println(clickhouseSql);
+
         // 校验SQL
         SqlNode validate = planner.validate(parse);
         // SQL转关系代数树
