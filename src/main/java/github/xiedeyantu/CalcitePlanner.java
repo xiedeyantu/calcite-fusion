@@ -1,23 +1,18 @@
 package github.xiedeyantu;
 
+import com.google.common.collect.ImmutableList;
 import github.xiedeyantu.rules.EnumRules;
 import github.xiedeyantu.schema.MySchema;
-import org.apache.calcite.DataContexts;
 import org.apache.calcite.adapter.enumerable.EnumerableConvention;
-import org.apache.calcite.adapter.enumerable.EnumerableInterpretable;
-import org.apache.calcite.adapter.enumerable.EnumerableRel;
 import org.apache.calcite.avatica.util.Casing;
 import org.apache.calcite.jdbc.CalciteConnection;
-import org.apache.calcite.jdbc.CalcitePrepare;
-import org.apache.calcite.linq4j.Enumerator;
+import org.apache.calcite.plan.ConventionTraitDef;
 import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.plan.RelTraitSet;
+import org.apache.calcite.rel.RelCollationTraitDef;
+import org.apache.calcite.rel.RelDistributionTraitDef;
 import org.apache.calcite.rel.RelNode;
 import org.apache.calcite.rel.metadata.DefaultRelMetadataProvider;
-import org.apache.calcite.rel.rules.CoreRules;
-import org.apache.calcite.rel.type.RelDataType;
-import org.apache.calcite.rel.type.RelDataTypeField;
-import org.apache.calcite.runtime.Bindable;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.calcite.sql.SqlNode;
 import org.apache.calcite.sql.parser.SqlParser;
@@ -30,18 +25,12 @@ import org.apache.calcite.tools.RuleSets;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.util.Collections;
 import java.util.Properties;
-import java.util.stream.Collectors;
 
-public class CalciteDemo {
+public class CalcitePlanner {
   public static void main(String[] args) throws Exception {
     // 定义第一个规则集，主要包含Calcite核心规则
-    RuleSet ruleSet0 = RuleSets.ofList(
-        CoreRules.FILTER_TO_CALC,
-        CoreRules.PROJECT_TO_CALC,
-        CoreRules.CALC_MERGE
-    );
+    RuleSet ruleSet0 = RuleSets.ofList();
 
     // 定义第二个规则集，主要包含Enumerable相关规则
     RuleSet physicalRuleSet = RuleSets.ofList(EnumRules.ENUMERABLE_RULES);
@@ -60,6 +49,10 @@ public class CalciteDemo {
             .withCaseSensitive(false)
             .withUnquotedCasing(Casing.UNCHANGED)
             .withQuotedCasing(Casing.UNCHANGED))
+        .traitDefs(ImmutableList.of(
+            ConventionTraitDef.INSTANCE,
+            RelCollationTraitDef.INSTANCE,
+            RelDistributionTraitDef.INSTANCE))
         // 配置两个优化程序：hep和volcano
         .programs(
             Programs.hep(ruleSet0, true, DefaultRelMetadataProvider.INSTANCE),
@@ -98,56 +91,5 @@ public class CalciteDemo {
     // 使用volcano优化器进行第二次优化（应用ruleSet1）
     RelNode transform2 = planner.transform(1, traitSet, transform);
     System.out.println("=== Volcano Plan ===\n" + RelOptUtil.toString(transform2));
-
-    // 将优化后的关系树转为可执行的Bindable对象
-    Bindable bindable = EnumerableInterpretable.toBindable(
-        Collections.emptyMap(),
-        CalcitePrepare.Dummy.getSparkHandler(false),
-        (EnumerableRel) transform2,
-        EnumerableRel.Prefer.ARRAY
-    );
-
-    // 绑定数据并获取结果集枚举器
-    Enumerator<Object[]> enumerator =
-        bindable.bind(DataContexts.of(calciteConnection, rootSchema))
-            .enumerator();
-
-    // 打印查询结果的表头
-    RelDataType rowType = transform2.getRowType();
-    String header = rowType.getFieldList().stream()
-        .map(RelDataTypeField::getName)
-        .collect(Collectors.joining("\t"));
-    System.out.println("=== Query Result ===\n" + header);
-
-    // 遍历并打印每一行查询结果
-    while (enumerator.moveNext()) {
-      Object[] row = enumerator.current();
-      for (Object col : row) {
-        System.out.print(col + "\t");
-      }
-      System.out.println();
-    }
-
-    // 关闭枚举器
-    enumerator.close();
-  }
-
-  // 定义内存Schema，包含一个mytable表
-  public static class DataSchema {
-    // mytable表，包含三行数据
-    public final MyTable[] mytable = {
-        new MyTable(1, "Alice"),
-        new MyTable(2, "Bob"),
-        new MyTable(3, "Carol"),
-    };
-  }
-  // mytable表的结构定义
-  public static class MyTable {
-    public final int id;
-    public final String name;
-    public MyTable(int id, String name) {
-      this.id = id;
-      this.name = name;
-    }
   }
 }
