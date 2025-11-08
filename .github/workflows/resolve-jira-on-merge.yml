@@ -18,10 +18,10 @@ jobs:
 
       - name: Resolve Jira Issue
         if: steps.extract-issue.outputs.issue != ''
-        uses: atlassian/gajira-transition@v3
+        uses: atlassian/gajira-cli@v3
         with:
-          issue: ${{ steps.extract-issue.outputs.issue }}
-          transition: 'Resolved'
+          command: |
+            jira transition --issue ${{ steps.extract-issue.outputs.issue }} --transition Resolved
         env:
           JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
           JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
