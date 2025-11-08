@@ -18,7 +18,7 @@ jobs:
 
       - name: Resolve Jira Issue
         if: steps.extract-issue.outputs.issue != ''
-        uses: atlassian/gajira-transition@v3.0.0
+        uses: atlassian/gajira-transition@master
         with:
           issue: ${{ steps.extract-issue.outputs.issue }}
           transition: 'Resolved'
