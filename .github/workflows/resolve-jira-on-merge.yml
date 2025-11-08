@@ -1,32 +1,53 @@
-name: Resolve Jira on PR Merge
+name: Resolve JIRA on merged PR
+
 on:
   pull_request:
     types: [closed]
+
+permissions:
+  contents: read
 
 jobs:
   resolve-jira:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
+
     steps:
-      - name: Extract Jira Issue ID
-        id: extract-issue
+      - name: Checkout (for safety)
+        uses: actions/checkout@v4
+
+      - name: Extract JIRA key from PR title or branch
+        id: extract
+        env:
+          PR_TITLE: "${{ github.event.pull_request.title }}"
+          PR_BRANCH: "${{ github.head_ref }}"
         run: |
-          ISSUE_ID=$(echo "${{ github.event.pull_request.title }}" | grep -oE '[A-Z]+-[0-9]+' | head -1)
-          echo "issue=$ISSUE_ID" >> $GITHUB_OUTPUT
-          echo "Extracted issue: $ISSUE_ID"
-          
-      - name: Setup Jira CLI
+          echo "PR_TITLE='$PR_TITLE'"
+          echo "PR_BRANCH='$PR_BRANCH'"
+
+          KEY=""
+          if [[ $PR_TITLE =~ ([A-Z][A-Z0-9]+-[0-9]+) ]]; then
+            KEY="${BASH_REMATCH[1]}"
+          elif [[ $PR_BRANCH =~ ([A-Z][A-Z0-9]+-[0-9]+) ]]; then
+            KEY="${BASH_REMATCH[1]}"
+          fi
+
+          echo "found=$KEY" >> $GITHUB_OUTPUT
+
+      - name: No JIRA key found — skip
+        if: steps.extract.outputs.found == ''
+        run: |
+          echo "No JIRA issue key detected in PR title or branch."
+          echo "PR title: ${{ github.event.pull_request.title }}"
+          echo "Branch: ${{ github.head_ref }}"
+          exit 1
+
+      - name: Transition JIRA issue to Resolved
+        if: steps.extract.outputs.found != ''
         uses: atlassian/gajira-cli@v3
         with:
-          version: 1.0.27
-          
-      - name: Transition Jira Issue
-        if: steps.extract-issue.outputs.issue != ''
-        run: |
-          echo "Transitioning issue: $ISSUE_ID to Resolved"
-          jira transition --issue $ISSUE_ID --transition Resolved
+          command: issue transition ${{ steps.extract.outputs.found }} --transition "Resolved"
         env:
           JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
-          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
           JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
-          ISSUE_ID: ${{ steps.extract-issue.outputs.issue }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
