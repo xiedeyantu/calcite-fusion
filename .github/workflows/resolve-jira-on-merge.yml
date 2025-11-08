@@ -42,79 +42,76 @@ jobs:
           echo "Branch: ${{ github.event.pull_request.head.ref }}"
           exit 0
 
-      - name: Install gajira CLI (provides gajira binary)
-        uses: atlassian/gajira-cli@v3
-        with:
-          version: '1.0.27'
+      - name: Debug try GET issue
+        if: steps.extract.outputs.found != ''
         env:
           JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
           JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
           JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
-
-      - name: Debug show gajira version and try GET issue
-        if: steps.extract.outputs.found != ''
         run: |
           ISSUE=${{ steps.extract.outputs.found }}
-          echo "gajira version:"
-          gajira --version || true
-          echo "Attempt to GET issue $ISSUE (shows authentication/permission errors):"
-          gajira issue get "$ISSUE" || true
+          echo "Curl GET issue for debugging: $ISSUE"
+
+          curl -i -s -u "${JIRA_USER_EMAIL}:${JIRA_API_TOKEN}" \
+            -H "Accept: application/json" \
+            "${JIRA_BASE_URL%/}/rest/api/2/issue/${ISSUE}" || true
+
+      - name: List transitions (curl -> transitions.json)
+        if: steps.extract.outputs.found != ''
         env:
           JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
           JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
           JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
-
-      - name: List available transitions (for debugging)
-        if: steps.extract.outputs.found != ''
         run: |
           ISSUE=${{ steps.extract.outputs.found }}
-          echo "Listing transitions for $ISSUE:"
-          # Try json output first; if not supported just run plain
-          gajira issue transitions "$ISSUE" --output json > transitions.json 2>/dev/null || gajira issue transitions "$ISSUE" > transitions.txt 2>&1 || true
-          echo "---- transitions (raw output) ----"
-          if [ -s transitions.json ]; then
-            cat transitions.json
-          else
-            cat transitions.txt || true
-          fi
+          echo "Listing transitions for $ISSUE"
+
+          curl -s -u "${JIRA_USER_EMAIL}:${JIRA_API_TOKEN}" \
+            -H "Accept: application/json" \
+            "${JIRA_BASE_URL%/}/rest/api/2/issue/${ISSUE}/transitions?expand=transitions.fields" \
+            -o transitions.json || true
+          echo "---- transitions.json ----"
+          jq . transitions.json || cat transitions.json || true
           echo "---- end transitions ----"
+
+      - name: Transition using found transition id (curl, best-effort)
+        if: steps.extract.outputs.found != ''
         env:
           JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
           JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
           JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
-
-      - name: Transition using first available transition id (best-effort)
-        if: steps.extract.outputs.found != ''
         run: |
           ISSUE=${{ steps.extract.outputs.found }}
-          echo "Attempting to parse transition id and run transition for $ISSUE"
+          echo "Attempting automatic transition for $ISSUE"
 
-          # Prefer JSON parsing if available
-          if [ -f transitions.json ]; then
-            echo "Parsing transitions.json"
-            # requires jq (ubuntu-latest already has jq)
-            if jq -e . transitions.json >/dev/null 2>&1; then
-              TID=$(jq -r '.[0].id' transitions.json)
-              TNAME=$(jq -r '.[0].name' transitions.json)
-            fi
-          fi
+          #TID=$(jq -r '.transitions[] | select(.name=="Resolved") | .id' transitions.json | head -n1 || true)
 
-          # Fallback: try parse plain text transitions.txt (lines often like "1: To Do" or similar)
-          if [ -z "$TID" ] && [ -f transitions.txt ]; then
-            echo "Parsing transitions.txt"
-            TID=$(sed -n 's/^[[:space:]]*\([0-9]\+\)[[:space:]:-]\{1,\}.*$/\1/p' transitions.txt | head -n1 || true)
-            TNAME=$(sed -n 's/^[[:space:]]*\([0-9]\+\)[[:space:]:-]\{1,\}\(.*\)$/\2/p' transitions.txt | head -n1 || true)
+          if [ -z "$TID" ]; then
+            TID=$(jq -r '.transitions[0].id' transitions.json 2>/dev/null || true)
+            TNAME=$(jq -r '.transitions[0].name' transitions.json 2>/dev/null || true)
           fi
 
           if [ -z "$TID" ]; then
-            echo "Could not parse a transition id automatically. Please inspect the transitions output above and set the correct transition name or id manually."
+            echo "No transition id parsed. Inspect transitions.json above and set the desired transition id manually."
             exit 1
           fi
 
-          echo "Using transition id: $TID (name: '$TNAME')"
-          echo "Running: gajira issue transition $ISSUE --transition $TID"
-          gajira issue transition "$ISSUE" --transition "$TID"
-        env:
-          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
-          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
-          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          echo "Using transition id=$TID (name='$TNAME')"
+
+          HTTP_OUT=$(mktemp)
+          curl -s -w "%{http_code}" -u "${JIRA_USER_EMAIL}:${JIRA_API_TOKEN}" \
+            -H "Content-Type: application/json" \
+            -X POST \
+            --data "{\"transition\":{\"id\":\"${TID}\"}}" \
+            "${JIRA_BASE_URL%/}/rest/api/2/issue/${ISSUE}/transitions" -o "${HTTP_OUT}" -S || true
+          STATUS=$(tail -n1 "${HTTP_OUT}")
+          echo "Response body:"
+          cat "${HTTP_OUT}"
+          echo ""
+          echo "HTTP_status (curl): ${STATUS}"
+          if [ "${STATUS}" = "204" ] || [ "${STATUS}" = "200" ]; then
+            echo "Transition request succeeded (HTTP ${STATUS})."
+          else
+            echo "Transition request might have failed. Check the response above. Common causes: auth failure (401), permission denied (403), or invalid transition id (400)."
+            exit 1
+          fi
