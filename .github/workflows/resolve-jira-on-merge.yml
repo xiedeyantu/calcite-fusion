@@ -1,0 +1,27 @@
+name: Resolved Jira on PR Merge
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  close-jira:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Extract Jira Issue ID
+        id: extract-issue
+        run: |
+          ISSUE_ID=$(echo "${{ github.event.pull_request.title }}" | grep -oE '[A-Z]+-[0-9]+' | head -1)
+          echo "issue=$ISSUE_ID" >> $GITHUB_OUTPUT
+          echo "Extracted issue: $ISSUE_ID"
+
+      - name: Resolve Jira Issue
+        if: steps.extract-issue.outputs.issue != ''
+        uses: atlassian/gajira-transition@v3.0.0
+        with:
+          issue: ${{ steps.extract-issue.outputs.issue }}
+          transition: 'Resolved'
+        env:
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
