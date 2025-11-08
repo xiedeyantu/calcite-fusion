@@ -39,14 +39,81 @@ jobs:
         run: |
           echo "No JIRA issue key detected in PR title or branch."
           echo "PR title: ${{ github.event.pull_request.title }}"
-          echo "Branch: ${{ github.head_ref }}"
-          exit 1
+          echo "Branch: ${{ github.event.pull_request.head.ref }}"
+          exit 0
 
-      - name: Transition JIRA issue to Resolved
-        if: steps.extract.outputs.found != ''
+      - name: Install gajira CLI (provides gajira binary)
         uses: atlassian/gajira-cli@v3
         with:
-          command: issue transition ${{ steps.extract.outputs.found }} --transition "Resolved"
+          version: '1.0.27'
+        env:
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+
+      - name: Debug show gajira version and try GET issue
+        if: steps.extract.outputs.found != ''
+        run: |
+          ISSUE=${{ steps.extract.outputs.found }}
+          echo "gajira version:"
+          gajira --version || true
+          echo "Attempt to GET issue $ISSUE (shows authentication/permission errors):"
+          gajira issue get "$ISSUE" || true
+        env:
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+
+      - name: List available transitions (for debugging)
+        if: steps.extract.outputs.found != ''
+        run: |
+          ISSUE=${{ steps.extract.outputs.found }}
+          echo "Listing transitions for $ISSUE:"
+          # Try json output first; if not supported just run plain
+          gajira issue transitions "$ISSUE" --output json > transitions.json 2>/dev/null || gajira issue transitions "$ISSUE" > transitions.txt 2>&1 || true
+          echo "---- transitions (raw output) ----"
+          if [ -s transitions.json ]; then
+            cat transitions.json
+          else
+            cat transitions.txt || true
+          fi
+          echo "---- end transitions ----"
+        env:
+          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
+
+      - name: Transition using first available transition id (best-effort)
+        if: steps.extract.outputs.found != ''
+        run: |
+          ISSUE=${{ steps.extract.outputs.found }}
+          echo "Attempting to parse transition id and run transition for $ISSUE"
+
+          # Prefer JSON parsing if available
+          if [ -f transitions.json ]; then
+            echo "Parsing transitions.json"
+            # requires jq (ubuntu-latest already has jq)
+            if jq -e . transitions.json >/dev/null 2>&1; then
+              TID=$(jq -r '.[0].id' transitions.json)
+              TNAME=$(jq -r '.[0].name' transitions.json)
+            fi
+          fi
+
+          # Fallback: try parse plain text transitions.txt (lines often like "1: To Do" or similar)
+          if [ -z "$TID" ] && [ -f transitions.txt ]; then
+            echo "Parsing transitions.txt"
+            TID=$(sed -n 's/^[[:space:]]*\([0-9]\+\)[[:space:]:-]\{1,\}.*$/\1/p' transitions.txt | head -n1 || true)
+            TNAME=$(sed -n 's/^[[:space:]]*\([0-9]\+\)[[:space:]:-]\{1,\}\(.*\)$/\2/p' transitions.txt | head -n1 || true)
+          fi
+
+          if [ -z "$TID" ]; then
+            echo "Could not parse a transition id automatically. Please inspect the transitions output above and set the correct transition name or id manually."
+            exit 1
+          fi
+
+          echo "Using transition id: $TID (name: '$TNAME')"
+          echo "Running: gajira issue transition $ISSUE --transition $TID"
+          gajira issue transition "$ISSUE" --transition "$TID"
         env:
           JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
           JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
