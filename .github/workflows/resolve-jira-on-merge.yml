@@ -1,11 +1,10 @@
-name: Resolved Jira on PR Merge
+name: Resolve Jira on PR Merge
 on:
   pull_request:
     types: [closed]
-  workflow_dispatch:
 
 jobs:
-  close-jira:
+  resolve-jira:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
@@ -15,14 +14,19 @@ jobs:
           ISSUE_ID=$(echo "${{ github.event.pull_request.title }}" | grep -oE '[A-Z]+-[0-9]+' | head -1)
           echo "issue=$ISSUE_ID" >> $GITHUB_OUTPUT
           echo "Extracted issue: $ISSUE_ID"
-
-      - name: Resolve Jira Issue
-        if: steps.extract-issue.outputs.issue != ''
+          
+      - name: Setup Jira CLI
         uses: atlassian/gajira-cli@v3
         with:
-          command: |
-            jira transition --issue ${{ steps.extract-issue.outputs.issue }} --transition Resolved
+          version: 1.0.27
+          
+      - name: Transition Jira Issue
+        if: steps.extract-issue.outputs.issue != ''
+        run: |
+          echo "Transitioning issue: $ISSUE_ID to Resolved"
+          jira transition --issue $ISSUE_ID --transition Resolved
         env:
           JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
           JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
           JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
+          ISSUE_ID: ${{ steps.extract-issue.outputs.issue }}
