@@ -8,110 +8,54 @@ permissions:
   contents: read
 
 jobs:
-  resolve-jira:
-    if: github.event.pull_request.merged == true
+  transition-jira:
+    name: Transition Jira when PR merged
     runs-on: ubuntu-latest
-
+    if: github.event.pull_request.merged == true
+    env:
+      JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
+      JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
     steps:
-      - name: Checkout (for safety)
-        uses: actions/checkout@v4
-
-      - name: Extract JIRA key from PR title or branch
+      - name: Extract first CALCITE key from PR title
         id: extract
-        env:
-          PR_TITLE: "${{ github.event.pull_request.title }}"
-          PR_BRANCH: "${{ github.head_ref }}"
         run: |
-          echo "PR_TITLE='$PR_TITLE'"
-          echo "PR_BRANCH='$PR_BRANCH'"
+          PR_TITLE='${{ github.event.pull_request.title }}'
+          KEY=$(echo "$PR_TITLE" | grep -oE 'CALCITE-[0-9]+' | head -n1 || true)
+          echo "extracted_key=$KEY" >> $GITHUB_OUTPUT
 
-          KEY=""
-          if [[ $PR_TITLE =~ ([A-Z][A-Z0-9]+-[0-9]+) ]]; then
-            KEY="${BASH_REMATCH[1]}"
-          elif [[ $PR_BRANCH =~ ([A-Z][A-Z0-9]+-[0-9]+) ]]; then
-            KEY="${BASH_REMATCH[1]}"
-          fi
-
-          echo "found=$KEY" >> $GITHUB_OUTPUT
-
-      - name: No JIRA key found — skip
-        if: steps.extract.outputs.found == ''
+      - name: Transition Jira issue (id=5, resolution=Fixed)
+        if: steps.extract.outputs.extracted_key != ''
         run: |
-          echo "No JIRA issue key detected in PR title or branch."
-          echo "PR title: ${{ github.event.pull_request.title }}"
-          echo "Branch: ${{ github.event.pull_request.head.ref }}"
-          exit 0
-
-      - name: Debug try GET issue
-        if: steps.extract.outputs.found != ''
-        env:
-          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
-          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
-          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
-        run: |
-          ISSUE=${{ steps.extract.outputs.found }}
-          echo "Curl GET issue for debugging: $ISSUE"
-
-          curl -i -s -u "${JIRA_USER_EMAIL}:${JIRA_API_TOKEN}" \
-            -H "Accept: application/json" \
-            "${JIRA_BASE_URL%/}/rest/api/2/issue/${ISSUE}" || true
-
-      - name: List transitions (curl -> transitions.json)
-        if: steps.extract.outputs.found != ''
-        env:
-          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
-          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
-          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
-        run: |
-          ISSUE=${{ steps.extract.outputs.found }}
-          echo "Listing transitions for $ISSUE"
-
-          curl -s -u "${JIRA_USER_EMAIL}:${JIRA_API_TOKEN}" \
-            -H "Accept: application/json" \
-            "${JIRA_BASE_URL%/}/rest/api/2/issue/${ISSUE}/transitions?expand=transitions.fields" \
-            -o transitions.json || true
-          echo "---- transitions.json ----"
-          jq . transitions.json || cat transitions.json || true
-          echo "---- end transitions ----"
-
-      - name: Transition using found transition id (curl, best-effort)
-        if: steps.extract.outputs.found != ''
-        env:
-          JIRA_BASE_URL: ${{ secrets.JIRA_BASE_URL }}
-          JIRA_USER_EMAIL: ${{ secrets.JIRA_USER_EMAIL }}
-          JIRA_API_TOKEN: ${{ secrets.JIRA_API_TOKEN }}
-        run: |
-          ISSUE=${{ steps.extract.outputs.found }}
-          echo "Attempting automatic transition for $ISSUE"
-
-          #TID=$(jq -r '.transitions[] | select(.name=="Resolved") | .id' transitions.json | head -n1 || true)
-
-          if [ -z "$TID" ]; then
-            TID=$(jq -r '.transitions[0].id' transitions.json 2>/dev/null || true)
-            TNAME=$(jq -r '.transitions[0].name' transitions.json 2>/dev/null || true)
-          fi
-
-          if [ -z "$TID" ]; then
-            echo "No transition id parsed. Inspect transitions.json above and set the desired transition id manually."
-            exit 1
-          fi
-
-          echo "Using transition id=$TID (name='$TNAME')"
-
-          HTTP_OUT=$(mktemp)
-          curl -s -w "%{http_code}" -u "${JIRA_USER_EMAIL}:${JIRA_API_TOKEN}" \
-            -H "Content-Type: application/json" \
-            -X POST \
-            --data "{\"transition\":{\"id\":\"${TID}\"}}" \
-            "${JIRA_BASE_URL%/}/rest/api/2/issue/${ISSUE}/transitions" -o "${HTTP_OUT}" -S || true
-          STATUS=$(tail -n1 "${HTTP_OUT}")
-          echo "Response body:"
-          cat "${HTTP_OUT}"
-          echo ""
-          echo "HTTP_status (curl): ${STATUS}"
-          if [ "${STATUS}" = "204" ] || [ "${STATUS}" = "200" ]; then
-            echo "Transition request succeeded (HTTP ${STATUS})."
+          set -euo pipefail
+          KEY="${{ steps.extract.outputs.extracted_key }}"
+          echo "Will transition JIRA issue: $KEY"
+          PR_NUM='${{ github.event.pull_request.number }}'
+          PR_URL='${{ github.event.pull_request.html_url }}'
+          
+          PAYLOAD=$(jq -n \
+            --arg id "5" \
+            --arg res "Fixed" \
+            --arg prnum "$PR_NUM" \
+            --arg prurl "$PR_URL" \
+            '{
+              transition: { id: $id },
+              fields: { resolution: { name: $res } },
+              update: { comment: [ { add: { body: ("Resolved via PR #" + $prnum + ": " + $prurl) } } ] }
+            }')
+          POST_URL="${JIRA_BASE_URL}/rest/api/2/issue/${KEY}/transitions"
+          echo "POST $POST_URL"
+          HTTP_CODE=$(curl -s -o /tmp/jresp -w "%{http_code}" -H "Authorization: Bearer ${JIRA_API_TOKEN}" -H "Content-Type: application/json" -X POST -d "$PAYLOAD" "$POST_URL")
+          BODY=$(cat /tmp/jresp || true)
+          echo "HTTP code: $HTTP_CODE"
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            echo "Successfully transitioned $KEY"
           else
-            echo "Transition request might have failed. Check the response above. Common causes: auth failure (401), permission denied (403), or invalid transition id (400)."
+            echo "Failed to transition $KEY. HTTP $HTTP_CODE"
+            echo "Response body:"
+            echo "$BODY"
             exit 1
           fi
+
+      - name: Skip (no CALCITE key)
+        if: steps.extract.outputs.extracted_key == ''
+        run: echo "PR title contains no CALCITE-<num>; nothing to do."
