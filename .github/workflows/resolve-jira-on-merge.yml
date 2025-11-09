@@ -30,17 +30,23 @@ jobs:
           KEY="${{ steps.extract.outputs.extracted_key }}"
           echo "Will transition JIRA issue: $KEY"
           PR_NUM='${{ github.event.pull_request.number }}'
-          PR_URL='${{ github.event.pull_request.html_url }}'
-          
+          REPO='${{ github.repository }}'
+
+          MERGE_SHA='${{ github.event.pull_request.merge_commit_sha }}'
+          echo "merge_commit_sha from event: $MERGE_SHA"
+
+          COMMIT_URL="https://github.com/${REPO}/commit/${MERGE_SHA}"
+          echo "Using commit URL: $COMMIT_URL"
+
           PAYLOAD=$(jq -n \
             --arg id "5" \
             --arg res "Fixed" \
             --arg prnum "$PR_NUM" \
-            --arg prurl "$PR_URL" \
+            --arg commiturl "$COMMIT_URL" \
             '{
               transition: { id: $id },
               fields: { resolution: { name: $res } },
-              update: { comment: [ { add: { body: ("Resolved via PR #" + $prnum + ": " + $prurl) } } ] }
+              update: { comment: [ { add: { body: ("Resolved via PR #" + $prnum + " (commit: " + $commiturl + ")") } } ] }
             }')
           POST_URL="${JIRA_BASE_URL}/rest/api/2/issue/${KEY}/transitions"
           echo "POST $POST_URL"
