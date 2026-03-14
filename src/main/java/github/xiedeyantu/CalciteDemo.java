@@ -68,11 +68,12 @@ public class CalciteDemo {
     Planner planner = Frameworks.getPlanner(config);
 
     // SQL查询语句
-    String sql = "SELECT e.empid, e.NAME, e.salary, d.name as DEPT_name, Array['a', 'b'] " +
-        "FROM emps e " +
-        "JOIN depts d ON e.deptno = d.deptno " +
-        "WHERE d.deptno = 10 " +
-        "ORDER BY e.salary DESC";
+    String sql =
+          "SELECT e.empno, e.ename, e.job, e.sal, d.dname, d.loc "
+                  + "FROM emp e "
+                  + "JOIN dept d ON e.deptno = d.deptno "
+                  + "WHERE e.job = 'SALESMAN' "
+                  + "ORDER BY e.sal DESC";
     System.out.println("=== SQL ===\n" + sql);
     // 解析SQL
     SqlNode parse = planner.parse(sql);
