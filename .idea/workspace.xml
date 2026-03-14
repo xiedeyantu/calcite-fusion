@@ -4,49 +4,8 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="257b1752-4fc9-433b-b2d9-7ac7c8edc360" name="Changes" comment="a">
-      <change afterPath="$PROJECT_DIR$/.gitignore" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/compiler.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/git_toolbox_prj.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/jarRepositories.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/PIPELINE_DESIGN.md" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/github/xiedeyantu/PipelineDemo.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/github/xiedeyantu/pipeline/ColumnBatch.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/github/xiedeyantu/pipeline/Consumer.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/github/xiedeyantu/pipeline/FusionConvention.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/github/xiedeyantu/pipeline/FusionImplementor.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/github/xiedeyantu/pipeline/FusionRel.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/github/xiedeyantu/pipeline/PipelineExecutor.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/github/xiedeyantu/pipeline/Source.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/github/xiedeyantu/pipeline/expr/Expr.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/github/xiedeyantu/pipeline/expr/Predicate.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/github/xiedeyantu/pipeline/expr/RexToExpr.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/github/xiedeyantu/pipeline/operators/FilterOperator.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/github/xiedeyantu/pipeline/operators/HashJoinOperator.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/github/xiedeyantu/pipeline/operators/ProjectOperator.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/github/xiedeyantu/pipeline/operators/ResultCollector.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/github/xiedeyantu/pipeline/operators/ScanOperator.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/github/xiedeyantu/pipeline/operators/SortOperator.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/github/xiedeyantu/pipeline/rel/FusionFilter.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/github/xiedeyantu/pipeline/rel/FusionHashJoin.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/github/xiedeyantu/pipeline/rel/FusionProject.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/github/xiedeyantu/pipeline/rel/FusionSort.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/github/xiedeyantu/pipeline/rel/FusionTableScan.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/github/xiedeyantu/pipeline/rules/FusionRules.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/github/xiedeyantu/tables/BonusTable.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/github/xiedeyantu/tables/DeptTable.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/github/xiedeyantu/tables/EmpTable.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.github/workflows/resolve-jira-on-merge.yml" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/github/xiedeyantu/CalciteDemo.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/github/xiedeyantu/CalciteDemo.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/github/xiedeyantu/rules/EnumRules.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/github/xiedeyantu/rules/EnumRules.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/github/xiedeyantu/rules/TestFilterIntoJoinRule.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/github/xiedeyantu/rules/TestIntersectToSemiJoinRule.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/github/xiedeyantu/rules/TestProjectJoinRemoveRule.java" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/github/xiedeyantu/schema/MySchema.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/github/xiedeyantu/schema/MySchema.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/github/xiedeyantu/tables/BaseTable.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/github/xiedeyantu/tables/BaseTable.java" afterDir="false" />
+    <list default="true" id="257b1752-4fc9-433b-b2d9-7ac7c8edc360" name="Changes" comment="Add pipeline executor">
+      <change beforePath="$PROJECT_DIR$/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/README.md" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -167,7 +126,7 @@
       <option name="presentableId" value="Default" />
       <updated>1762609483597</updated>
       <workItem from="1762609484767" duration="5344000" />
-      <workItem from="1773481023511" duration="2389000" />
+      <workItem from="1773481023511" duration="3079000" />
     </task>
     <task id="LOCAL-00001" summary="a">
       <option name="closed" value="true" />
@@ -177,7 +136,15 @@
       <option name="project" value="LOCAL" />
       <updated>1762610419295</updated>
     </task>
-    <option name="localTasksCounter" value="2" />
+    <task id="LOCAL-00002" summary="Add pipeline executor">
+      <option name="closed" value="true" />
+      <created>1773483700284</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1773483700284</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -185,6 +152,7 @@
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="a" />
-    <option name="LAST_COMMIT_MESSAGE" value="a" />
+    <MESSAGE value="Add pipeline executor" />
+    <option name="LAST_COMMIT_MESSAGE" value="Add pipeline executor" />
   </component>
 </project>
