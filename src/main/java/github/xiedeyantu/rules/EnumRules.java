@@ -12,7 +12,7 @@ public class EnumRules {
                     EnumerableRules.ENUMERABLE_CORRELATE_RULE,
                     EnumerableRules.ENUMERABLE_PROJECT_RULE,
                     EnumerableRules.ENUMERABLE_FILTER_RULE,
-                    // EnumerableRules.ENUMERABLE_CALC_RULE,
+                    EnumerableRules.ENUMERABLE_CALC_RULE,
                     EnumerableRules.ENUMERABLE_AGGREGATE_RULE,
                     EnumerableRules.ENUMERABLE_SORT_RULE,
                     EnumerableRules.ENUMERABLE_LIMIT_RULE,

@@ -19,6 +19,10 @@ import java.util.List;
 public class BaseTable extends AbstractTable implements ScannableTable, TranslatableTable {
   protected List<Object[]> data;
 
+  public List<Object[]> getData() {
+    return data;
+  }
+
   @Override
   public RelDataType getRowType(RelDataTypeFactory typeFactory) {
     return null;
